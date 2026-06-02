@@ -172,7 +172,7 @@
         .numpad-btn:active { transform: scale(0.95); background-color: var(--btn-hover); }
         .clear-btn { grid-column: span 3; background-color: var(--fixed-bg); font-size: 16px; height: 50px; text-transform: uppercase; }
 
-        /* --- Kreuzworträtsel (Station 4) Spezifisch --- */
+        /* --- Kreuzworträtsel (Station 3) Spezifisch --- */
         #section-hochbeet {
             max-width: 100%;
         }
@@ -373,10 +373,10 @@
 <body>
 
     <!-- ==========================================
-         STATION 2: SUDOKU (Start der Seite)
+         STATION 1: SUDOKU (Start der Seite)
          ========================================== -->
     <div id="section-sudoku" class="section active">
-        <h1>Station 2</h1>
+        <h1>Station 1</h1>
         <div id="grid" class="sudoku-grid"></div>
         <div class="numpad-container">
             <div class="numpad-grid">
@@ -405,10 +405,10 @@
 
 
     <!-- ==========================================
-         STATION 3: POOL (ZAHLENCODE)
+         STATION 2: POOL (ZAHLENCODE)
          ========================================== -->
     <div id="section-pool" class="section">
-        <h1>Station 3</h1>
+        <h1>Station 2</h1>
         <p>Wandle das folgende Wort in Zahlen um. <br><small>(A=1, B=2, C=3, ..., Z=26)</small><br>
         <strong style="font-size: 0.95rem; color: var(--success-text);">Wichtig: Trenne jede Zahl mit einem Leerzeichen!</strong></p>
         
@@ -420,10 +420,10 @@
 
 
     <!-- ==========================================
-         STATION 4: HOCHBEET (KREUZWORTRÄTSEL)
+         STATION 3: HOCHBEET (KREUZWORTRÄTSEL)
          ========================================== -->
     <div id="section-hochbeet" class="section">
-        <h1>Station 4</h1>
+        <h1>Station 3</h1>
         
         <div class="cw-wrapper">
             <div id="crossword-grid" class="crossword-grid"></div>
@@ -463,10 +463,10 @@
 
 
     <!-- ==========================================
-         STATION 5: HÜGEL (FRAGE)
+         STATION 4: HÜGEL (FRAGE)
          ========================================== -->
     <div id="section-huegel" class="section">
-        <h1>Station 5</h1>
+        <h1>Station 4</h1>
         <p>Wann haben wir uns kennengelernt?<br><small>(Format: Monat, Jahr)</small></p>
         <input type="text" id="huegel-input" class="input-field" placeholder="z.B. August, 2012" autocomplete="off">
         <div id="huegel-error" class="error-msg">Das ist nicht ganz richtig.</div>
@@ -475,10 +475,10 @@
 
 
     <!-- ==========================================
-         FINALE (STATION 6)
+         FINALE (STATION 5)
          ========================================== -->
     <div id="section-finale" class="section">
-        <h1>Station 6</h1>
+        <h1>Station 5</h1>
         <p style="font-size: 1.4rem; font-weight: 500;">Letzter Hinweis:</p>
         <p style="font-size: 1.4rem; font-weight: 500;">Dein Geschenk ist in deinem kleinen Königreich.</p>
         <p style="margin-top: 2rem; font-size: 1.4rem; font-weight: bold;">Alles Gute zum Geburtstag!</p>
@@ -502,11 +502,11 @@
            EINSTELLUNGEN (Hier kannst du später Dinge anpassen)
            ========================================================= */
         
-        // --- Station 3 (Pool) ---
+        // --- Station 2 (Pool) ---
         const POOL_WORT_ANZUZEIGEN = "SCHWESTER"; 
         const POOL_LOESUNG = "19 3 8 23 5 19 20 5 18"; 
         
-        // --- Station 5 (Hügel) ---
+        // --- Station 4 (Hügel) ---
         const HUEGEL_ANTWORT = "Mai, 2010"; // Bitte noch anpassen!
 
 
@@ -561,21 +561,21 @@
            DIE STATIONEN (Ablauf-Logik)
            ========================================================= */
         
-        // Station 2 (Sudoku)
+        // Station 1 (Sudoku)
         function onSudokuSolved() {
             showHintOverlay(
                 "Sudoku gelöst", 
                 "Weiter geht es dort, wo du früher zur Meerjungfrau wurdest.", 
                 () => requireKeyword(
                     "Poolnudel", 
-                    "Station 3", 
+                    "Station 2", 
                     "Bitte gib das Schlüsselwort ein, das du an der aktuellen Station gefunden hast.", 
                     startPoolTask
                 )
             );
         }
 
-        // Station 3 (Pool)
+        // Station 2 (Pool)
         function startPoolTask() {
             document.getElementById('pool-word-display').innerText = POOL_WORT_ANZUZEIGEN;
             showSection('section-pool');
@@ -586,10 +586,10 @@
             if (input === POOL_LOESUNG) {
                 showHintOverlay(
                     "Code Entschlüsselt", 
-                    "Gehe dorthin, wo Pflanzen in der Höhe sind",
+                    "Nicht in der Erde, sondern ein Stockwerk höher als erwartet, befindet sich die nächste Aufgabe.",
                     () => requireKeyword(
                         "Werder", 
-                        "Station 4", 
+                        "Station 3", 
                         "Bitte gib das Schlüsselwort ein, das du an der aktuellen Station gefunden hast.", 
                         startHochbeetTask
                     )
@@ -599,7 +599,7 @@
             }
         }
 
-        // Station 4 (Hochbeet - Kreuzworträtsel)
+        // Station 3 (Hochbeet - Kreuzworträtsel)
         function startHochbeetTask() {
             showSection('section-hochbeet');
         }
@@ -617,7 +617,7 @@
                     "Lösungswörter:\n\nHÜGEL RODELN\n\nDiese Wörter führen dich zur nächsten Station.",
                     () => requireKeyword(
                         "Baum", 
-                        "Station 5", 
+                        "Station 4", 
                         "An diesem Schlüsselwort hängt die nächste Station.", 
                         startHuegelTask
                     )
@@ -627,7 +627,7 @@
             }
         }
 
-        // Station 5 (Hügel)
+        // Station 4 (Hügel)
         function startHuegelTask() {
             showSection('section-huegel');
         }
