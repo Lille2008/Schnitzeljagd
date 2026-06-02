@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Geburtstags-Schnitzeljagd</title>
+    <style>
+        /* Farbpalette und grundlegendes Design */
+        :root {
+            --bg-color: #fdfbf7;
+            --grid-border: #4a4238;
+            --cell-border: #dcd3c6;
+            --text-color: #2d2824;
+            --fixed-bg: #f5f2eb;
+            --fixed-text: #8c8273;
+            --error-color: #ef4444;
+            --error-bg: #fef2f2;
+            --success-bg: #10b981;
+            --success-text: #059669;
+            --selected-border: #3b82f6;
+            --selected-bg: #eff6ff;
+            --btn-bg: #ffffff;
+            --btn-hover: #f1f5f9;
+            --input-bg: #ffffff;
+            --cw-highlight: #d97706; /* Farbe für Lösungszahlen im Rätsel */
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            font-weight: 300;
+            letter-spacing: 0.05em;
+            margin-bottom: 2rem;
+            color: var(--grid-border);
+            font-size: 2rem;
+            text-align: center;
+        }
+
+        p {
+            line-height: 1.6;
+            font-size: 1.1rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            max-width: 400px;
+        }
+
+        /* --- Sektions-Logik (Seitenwechsel) --- */
+        .section {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        .section.active {
+            display: flex;
+        }
+
+        /* --- UI Elemente (Eingabefelder & Buttons) --- */
+        .input-field {
+            width: 100%;
+            max-width: 300px;
+            padding: 12px 16px;
+            font-size: 1.2rem;
+            border: 2px solid var(--cell-border);
+            border-radius: 8px;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            text-align: center;
+            margin-bottom: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--grid-border);
+        }
+
+        .action-btn {
+            background-color: var(--grid-border);
+            color: var(--bg-color);
+            border: none;
+            padding: 14px 32px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .action-btn:active {
+            transform: scale(0.96);
+        }
+
+        .error-msg {
+            color: var(--error-color);
+            font-size: 0.9rem;
+            margin-top: -10px;
+            margin-bottom: 15px;
+            height: 20px;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .error-msg.visible {
+            opacity: 1;
+        }
+
+        /* --- Sudoku Spezifisch --- */
+        .sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            border: 2px solid var(--grid-border);
+            background: var(--fixed-bg);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            font-size: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--cell-border);
+            color: var(--text-color);
+            background-color: white;
+            transition: all 0.2s;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+
+        .cell.fixed { background-color: var(--fixed-bg); color: var(--fixed-text); font-weight: 600; cursor: default; }
+        .cell.error { color: var(--error-color); background-color: var(--error-bg); }
+        .cell.selected { box-shadow: inset 0 0 0 3px var(--selected-border); background-color: var(--selected-bg); }
+        .cell.selected.error { box-shadow: inset 0 0 0 3px var(--error-color); }
+        
+        .cell:nth-child(6n+3) { border-right: 2px solid var(--grid-border); }
+        .cell:nth-child(n+7):nth-child(-n+12), .cell:nth-child(n+19):nth-child(-n+24) { border-bottom: 2px solid var(--grid-border); }
+
+        .numpad-container { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 250px; }
+        .numpad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        
+        .numpad-btn {
+            background-color: var(--btn-bg); border: 1px solid var(--cell-border); color: var(--text-color);
+            font-size: 24px; font-weight: 500; height: 60px; border-radius: 8px; cursor: pointer;
+            box-shadow: 0 2px 4px rgb(0 0 0 / 0.05); display: flex; align-items: center; justify-content: center;
+        }
+        .numpad-btn:active { transform: scale(0.95); background-color: var(--btn-hover); }
+        .clear-btn { grid-column: span 3; background-color: var(--fixed-bg); font-size: 16px; height: 50px; text-transform: uppercase; }
+
+        /* --- Kreuzworträtsel (Station 4) Spezifisch --- */
+        #section-hochbeet {
+            max-width: 100%;
+        }
+
+        .cw-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            padding-bottom: 15px;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .crossword-grid {
+            display: grid;
+            grid-template-columns: repeat(15, 32px);
+            grid-template-rows: repeat(12, 32px);
+            gap: 1px;
+            background-color: var(--grid-border);
+            border: 2px solid var(--grid-border);
+            width: max-content;
+        }
+
+        .cw-cell {
+            background-color: white;
+            position: relative;
+        }
+
+        .cw-cell.empty {
+            background-color: var(--grid-border);
+        }
+
+        .cw-input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 0;
+            margin: 0;
+            background: transparent;
+            color: var(--text-color);
+            border-radius: 0;
+        }
+
+        .cw-input:focus {
+            outline: none;
+            background-color: var(--selected-bg);
+        }
+
+        .cw-qnum {
+            position: absolute;
+            top: 2px;
+            left: 3px;
+            font-size: 9px;
+            line-height: 1;
+            color: #555;
+            pointer-events: none;
+        }
+
+        .cw-snum {
+            position: absolute;
+            bottom: 2px;
+            right: 3px;
+            font-size: 9px;
+            line-height: 1;
+            color: var(--cw-highlight);
+            font-weight: bold;
+            pointer-events: none;
+        }
+
+        .cw-clues {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 500px;
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+
+        .clues-col ul {
+            margin: 0.5rem 0 0 0;
+            padding-left: 1.5rem;
+        }
+
+        .clues-col li {
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+        }
+
+        .cw-solution {
+            margin-bottom: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .solution-boxes {
+            display: flex;
+            gap: 5px;
+        }
+
+        .sol-box-wrapper {
+            position: relative;
+        }
+
+        .sol-box {
+            width: 36px;
+            height: 36px;
+            border: 2px solid var(--grid-border);
+            border-radius: 4px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            padding: 0;
+        }
+
+        .sol-box:focus {
+            outline: none;
+            border-color: var(--selected-border);
+            background-color: var(--selected-bg);
+        }
+
+        .sol-box-num {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 9px;
+            color: var(--cw-highlight);
+            pointer-events: none;
+            font-weight: bold;
+        }
+
+
+        /* --- Overlay für Hinweise --- */
+        .overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(45, 40, 36, 0.7);
+            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+            z-index: 1000; align-items: center; justify-content: center;
+            padding: 20px; box-sizing: border-box;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .overlay.active { display: flex; }
+
+        .message-box {
+            background-color: var(--bg-color);
+            padding: 2.5rem 2rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.3);
+            max-width: 400px;
+            width: 100%;
+            border: 2px solid var(--grid-border);
+            animation: scaleUp 0.4s ease-out forwards;
+        }
+
+        .success-header {
+            color: var(--success-text); font-size: 0.9rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem;
+        }
+
+        .message-text { 
+            font-size: 1.35rem; line-height: 1.6; font-weight: 500; 
+            margin-bottom: 2rem; white-space: pre-line;
+        }
+
+        /* Animationen */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleUp { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* Mobile Anpassung für sehr gute Skalierbarkeit */
+        @media (max-width: 480px) {
+            .cell { width: 50px; height: 50px; font-size: 22px; }
+            .numpad-btn { height: 55px; font-size: 22px; }
+            
+            /* Das Kreuzworträtsel passt sich dynamisch an, vw = viewport width */
+            .crossword-grid {
+                grid-template-columns: repeat(15, 6vw);
+                grid-template-rows: repeat(12, 6vw);
+            }
+            .cw-input { font-size: 4.5vw; }
+            .cw-qnum { font-size: 2.2vw; top: 1px; left: 2px; }
+            .cw-snum { font-size: 2.5vw; bottom: 1px; right: 2px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==========================================
+         STATION 2: SUDOKU (Start der Seite)
+         ========================================== -->
+    <div id="section-sudoku" class="section active">
+        <h1>Station 2</h1>
+        <div id="grid" class="sudoku-grid"></div>
+        <div class="numpad-container">
+            <div class="numpad-grid">
+                <button class="numpad-btn" onclick="insertNumber(1)">1</button>
+                <button class="numpad-btn" onclick="insertNumber(2)">2</button>
+                <button class="numpad-btn" onclick="insertNumber(3)">3</button>
+                <button class="numpad-btn" onclick="insertNumber(4)">4</button>
+                <button class="numpad-btn" onclick="insertNumber(5)">5</button>
+                <button class="numpad-btn" onclick="insertNumber(6)">6</button>
+                <button class="numpad-btn clear-btn" onclick="clearSelectedCell()">Feld leeren</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==========================================
+         ALLGEMEINE SCHLÜSSELWORT-ABFRAGE
+         ========================================== -->
+    <div id="section-keyword" class="section">
+        <h1 id="keyword-title">Sicherheitsschloss</h1>
+        <p id="keyword-desc">Bitte gib das Schlüsselwort ein, das du an der aktuellen Station gefunden hast.</p>
+        <input type="text" id="keyword-input" class="input-field" placeholder="Schlüsselwort..." autocomplete="off">
+        <div id="keyword-error" class="error-msg">Falsches Schlüsselwort.</div>
+        <button class="action-btn" onclick="checkKeyword()">Bestätigen</button>
+    </div>
+
+
+    <!-- ==========================================
+         STATION 3: POOL (ZAHLENCODE)
+         ========================================== -->
+    <div id="section-pool" class="section">
+        <h1>Station 3</h1>
+        <p>Wandle das folgende Wort in Zahlen um. <br><small>(A=1, B=2, C=3, ..., Z=26)</small><br>
+        <strong style="font-size: 0.95rem; color: var(--success-text);">Wichtig: Trenne jede Zahl mit einem Leerzeichen!</strong></p>
+        
+        <h2 id="pool-word-display" style="letter-spacing: 0.2em; margin-bottom: 2rem;">WORT</h2>
+        <input type="text" id="pool-input" class="input-field" placeholder="Z.B.: 1 2 3" autocomplete="off">
+        <div id="pool-error" class="error-msg">Das stimmt leider noch nicht.</div>
+        <button class="action-btn" onclick="checkPoolTask()">Prüfen</button>
+    </div>
+
+
+    <!-- ==========================================
+         STATION 4: HOCHBEET (KREUZWORTRÄTSEL)
+         ========================================== -->
+    <div id="section-hochbeet" class="section">
+        <h1>Station 4</h1>
+        
+        <div class="cw-wrapper">
+            <div id="crossword-grid" class="crossword-grid"></div>
+        </div>
+
+        <div class="cw-clues">
+            <div class="clues-col">
+                <strong>Waagerecht (→)</strong>
+                <ul>
+                    <li><strong>2.</strong> Haben Menschen auf dem Kopf 💇‍♀️ (5)</li>
+                    <li><strong>3.</strong> Was ist die Hauptstadt von Südkorea? (5)</li>
+                    <li><strong>4.</strong> Kleidungsstück / Gehört dir 👖 (5)</li>
+                    <li><strong>7.</strong> So viele Bücher hast du letztes Jahr gelesen (ausgeschrieben) (14)</li>
+                </ul>
+            </div>
+            <div class="clues-col">
+                <strong>Senkrecht (↓)</strong>
+                <ul>
+                    <li><strong>1.</strong> Einer deiner Lieblingssongs als Kind ❄️ (deutsch) (12)</li>
+                    <li><strong>5.</strong> In diesem Monat wurdest du geboren (4)</li>
+                    <li><strong>6.</strong> Hund auf Französisch (5)</li>
+                    <li><strong>8.</strong> Dabei machst du komische Geräusche 😋 (5)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="cw-solution">
+            <div style="font-weight: 500;">Wort 1:</div>
+            <div class="solution-boxes" id="sol-word-1"></div>
+            <div style="font-weight: 500; margin-top: 5px;">Wort 2:</div>
+            <div class="solution-boxes" id="sol-word-2"></div>
+        </div>
+
+        <div id="hochbeet-error" class="error-msg">Das Lösungswort ist nicht ganz richtig.</div>
+        <button class="action-btn" onclick="checkHochbeetTask()">Bestätigen</button>
+    </div>
+
+
+    <!-- ==========================================
+         STATION 5: HÜGEL (FRAGE)
+         ========================================== -->
+    <div id="section-huegel" class="section">
+        <h1>Station 5</h1>
+        <p>Wann haben wir uns kennengelernt?<br><small>(Format: Monat, Jahr)</small></p>
+        <input type="text" id="huegel-input" class="input-field" placeholder="z.B. August, 2012" autocomplete="off">
+        <div id="huegel-error" class="error-msg">Das ist nicht ganz richtig.</div>
+        <button class="action-btn" onclick="checkHuegelTask()">Antworten</button>
+    </div>
+
+
+    <!-- ==========================================
+         FINALE (STATION 6)
+         ========================================== -->
+    <div id="section-finale" class="section">
+        <h1>Station 6</h1>
+        <p style="font-size: 1.4rem; font-weight: 500;">Letzter Hinweis:</p>
+        <p style="font-size: 1.4rem; font-weight: 500;">Dein Geschenk ist in deinem kleinen Königreich.</p>
+        <p style="margin-top: 2rem; font-size: 1.4rem; font-weight: bold;">Alles Gute zum Geburtstag!</p>
+    </div>
+
+
+    <!-- ==========================================
+         ALLGEMEINES HINWEIS-OVERLAY
+         ========================================== -->
+    <div id="hint-overlay" class="overlay">
+        <div class="message-box">
+            <div id="hint-header" class="success-header">Gut gemacht!</div>
+            <div id="hint-text" class="message-text">Hinweis Text hier...</div>
+            <button class="action-btn" onclick="closeHint()">OK</button>
+        </div>
+    </div>
+
+
+    <script>
+        /* =========================================================
+           EINSTELLUNGEN (Hier kannst du später Dinge anpassen)
+           ========================================================= */
+        
+        // --- Station 3 (Pool) ---
+        const POOL_WORT_ANZUZEIGEN = "SCHWESTER"; 
+        const POOL_LOESUNG = "19 3 8 23 5 19 20 5 18"; 
+        
+        // --- Station 5 (Hügel) ---
+        const HUEGEL_ANTWORT = "Mai, 2010"; // Bitte noch anpassen!
+
+
+        /* =========================================================
+           STEUERUNG DER STATIONEN (Zustandsmaschine)
+           ========================================================= */
+        let currentExpectedKeyword = "";
+        let nextCallbackAfterKeyword = null;
+        let hintCloseCallback = null;
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            window.scrollTo(0, 0);
+        }
+
+        function showHintOverlay(headerText, hintText, onOkClicked) {
+            document.getElementById('hint-header').innerText = headerText;
+            document.getElementById('hint-text').innerText = hintText;
+            hintCloseCallback = onOkClicked;
+            document.getElementById('hint-overlay').classList.add('active');
+        }
+
+        function closeHint() {
+            document.getElementById('hint-overlay').classList.remove('active');
+            if (hintCloseCallback) hintCloseCallback();
+        }
+
+        function requireKeyword(expectedWord, title, description, onSuccess) {
+            currentExpectedKeyword = expectedWord.toLowerCase().trim();
+            nextCallbackAfterKeyword = onSuccess;
+            
+            document.getElementById('keyword-title').innerText = title;
+            document.getElementById('keyword-desc').innerText = description;
+            document.getElementById('keyword-input').value = "";
+            document.getElementById('keyword-error').classList.remove('visible');
+            
+            showSection('section-keyword');
+        }
+
+        function checkKeyword() {
+            const input = document.getElementById('keyword-input').value.toLowerCase().trim();
+            if (input === currentExpectedKeyword) {
+                if (nextCallbackAfterKeyword) nextCallbackAfterKeyword();
+            } else {
+                document.getElementById('keyword-error').classList.add('visible');
+            }
+        }
+
+
+        /* =========================================================
+           DIE STATIONEN (Ablauf-Logik)
+           ========================================================= */
+        
+        // Station 2 (Sudoku)
+        function onSudokuSolved() {
+            showHintOverlay(
+                "Sudoku gelöst", 
+                "Weiter geht es dort, wo du früher zur Meerjungfrau wurdest.", 
+                () => requireKeyword(
+                    "Poolnudel", 
+                    "Station 3", 
+                    "Bitte gib das Schlüsselwort ein, das du an der aktuellen Station gefunden hast.", 
+                    startPoolTask
+                )
+            );
+        }
+
+        // Station 3 (Pool)
+        function startPoolTask() {
+            document.getElementById('pool-word-display').innerText = POOL_WORT_ANZUZEIGEN;
+            showSection('section-pool');
+        }
+
+        function checkPoolTask() {
+            const input = document.getElementById('pool-input').value.trim().replace(/\s+/g, ' ');
+            if (input === POOL_LOESUNG) {
+                showHintOverlay(
+                    "Code Entschlüsselt", 
+                    "Gehe dorthin, wo Pflanzen in der Höhe sind",
+                    () => requireKeyword(
+                        "Werder", 
+                        "Station 4", 
+                        "Bitte gib das Schlüsselwort ein, das du an der aktuellen Station gefunden hast.", 
+                        startHochbeetTask
+                    )
+                );
+            } else {
+                document.getElementById('pool-error').classList.add('visible');
+            }
+        }
+
+        // Station 4 (Hochbeet - Kreuzworträtsel)
+        function startHochbeetTask() {
+            showSection('section-hochbeet');
+        }
+
+        function checkHochbeetTask() {
+            let w1 = '';
+            for(let i=1; i<=5; i++) w1 += document.getElementById('sol-box-'+i).value.toUpperCase();
+            
+            let w2 = '';
+            for(let i=6; i<=11; i++) w2 += document.getElementById('sol-box-'+i).value.toUpperCase();
+
+            if (w1 === "HÜGEL" && w2 === "RODELN") {
+                showHintOverlay(
+                    "Rätsel gelöst", 
+                    "Lösungswörter:\n\nHÜGEL RODELN\n\nDiese Wörter führen dich zur nächsten Station.",
+                    () => requireKeyword(
+                        "Baum", 
+                        "Station 5", 
+                        "An diesem Schlüsselwort hängt die nächste Station.", 
+                        startHuegelTask
+                    )
+                );
+            } else {
+                document.getElementById('hochbeet-error').classList.add('visible');
+            }
+        }
+
+        // Station 5 (Hügel)
+        function startHuegelTask() {
+            showSection('section-huegel');
+        }
+
+        function checkHuegelTask() {
+            const input = document.getElementById('huegel-input').value.toLowerCase().trim();
+            const expected = HUEGEL_ANTWORT.toLowerCase().trim();
+            
+            if (input.replace(/\s/g, '') === expected.replace(/\s/g, '')) {
+                showSection('section-finale');
+            } else {
+                document.getElementById('huegel-error').classList.add('visible');
+            }
+        }
+
+
+        /* =========================================================
+           KREUZWORTRÄTSEL LOGIK (15x12 Raster) mit smarter Navigation
+           ========================================================= */
+        const cwData = [
+            {r:0, c:1, q:'1↓'},
+            {r:1, c:0, q:'2→'}, {r:1, c:1}, {r:1, c:2}, {r:1, c:3, s:6}, {r:1, c:4},
+            {r:2, c:1},
+            {r:3, c:1, q:'3→'}, {r:3, c:2, s:4}, {r:3, c:3}, {r:3, c:4}, {r:3, c:5, s:5},
+            {r:4, c:1},
+            {r:5, c:1}, {r:5, c:6, q:'4→/5↓'}, {r:5, c:7, s:9}, {r:5, c:8}, {r:5, c:9}, {r:5, c:10}, {r:5, c:13, q:'6↓'},
+            {r:6, c:1}, {r:6, c:6}, {r:6, c:13, s:1},
+            {r:7, c:1, q:'7→'}, {r:7, c:2}, {r:7, c:3, q:'8↓'}, {r:7, c:4}, {r:7, c:5}, {r:7, c:6}, {r:7, c:7, s:8}, {r:7, c:8}, {r:7, c:9, s:2}, {r:7, c:10}, {r:7, c:11}, {r:7, c:12}, {r:7, c:13}, {r:7, c:14, s:3},
+            {r:8, c:1}, {r:8, c:3}, {r:8, c:6}, {r:8, c:13},
+            {r:9, c:1, s:10}, {r:9, c:3}, {r:9, c:13},
+            {r:10, c:1, s:7}, {r:10, c:3},
+            {r:11, c:1}, {r:11, c:3, s:11}
+        ];
+
+        let cwCurrentDir = 'across'; // Speichert die aktuelle Tipp-Richtung (across = waagerecht, down = senkrecht)
+
+        function initCrossword() {
+            const gridEl = document.getElementById('crossword-grid');
+            gridEl.innerHTML = '';
+            
+            for (let r=0; r<12; r++) {
+                for (let c=0; c<15; c++) {
+                    const cellData = cwData.find(d => d.r === r && d.c === c);
+                    const cellDiv = document.createElement('div');
+                    
+                    if (cellData) {
+                        cellDiv.className = 'cw-cell';
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.maxLength = 1;
+                        input.className = 'cw-input';
+                        input.autocomplete = 'off';
+                        input.dataset.r = r;
+                        input.dataset.c = c;
+                        
+                        if (cellData.s) input.dataset.snum = cellData.s;
+
+                        // Intelligenz für die Tipp-Richtung
+                        input.addEventListener('focus', () => {
+                            let hasRight = cwData.some(d => d.r === r && d.c === c + 1);
+                            let hasDown = cwData.some(d => d.r === r + 1 && d.c === c);
+                            let hasLeft = cwData.some(d => d.r === r && d.c === c - 1);
+                            let hasUp = cwData.some(d => d.r === r - 1 && d.c === c);
+
+                            let canGoAcross = hasRight || hasLeft;
+                            let canGoDown = hasDown || hasUp;
+
+                            // Setzt die Richtung, basierend darauf, ob es Nachbarn gibt
+                            if (canGoAcross && !canGoDown) cwCurrentDir = 'across';
+                            else if (canGoDown && !canGoAcross) cwCurrentDir = 'down';
+                        });
+
+                        // Buchstabe eingetippt -> Automatisch weitespringen
+                        input.addEventListener('input', (e) => {
+                            let val = e.target.value.toUpperCase();
+                            e.target.value = val;
+                            
+                            // Synchronisiere Lösungsboxen
+                            if (cellData.s) {
+                                const solBox = document.getElementById('sol-box-' + cellData.s);
+                                if (solBox) solBox.value = val;
+                            }
+
+                            // Gehe zum nächsten Feld im Wort
+                            if (val !== '') {
+                                let nextR = r, nextC = c;
+                                if (cwCurrentDir === 'across') nextC++;
+                                else nextR++;
+                                let nextInput = document.querySelector(`.cw-input[data-r="${nextR}"][data-c="${nextC}"]`);
+                                if (nextInput) nextInput.focus();
+                            }
+                        });
+
+                        // Zurücklöschen -> Geht ins vorherige Feld
+                        input.addEventListener('keydown', (e) => {
+                            if (e.key === 'Backspace' && e.target.value === '') {
+                                e.preventDefault();
+                                let prevR = r, prevC = c;
+                                if (cwCurrentDir === 'across') prevC--;
+                                else prevR--;
+                                let prevInput = document.querySelector(`.cw-input[data-r="${prevR}"][data-c="${prevC}"]`);
+                                if (prevInput) {
+                                    prevInput.focus();
+                                    prevInput.value = ''; // Leere das vorige Feld direkt mit
+                                }
+                            }
+                        });
+
+                        cellDiv.appendChild(input);
+
+                        if (cellData.q) {
+                            const qSpan = document.createElement('span');
+                            qSpan.className = 'cw-qnum';
+                            qSpan.innerText = cellData.q;
+                            cellDiv.appendChild(qSpan);
+                        }
+                        if (cellData.s) {
+                            const sSpan = document.createElement('span');
+                            sSpan.className = 'cw-snum';
+                            sSpan.innerText = cellData.s;
+                            cellDiv.appendChild(sSpan);
+                        }
+                    } else {
+                        cellDiv.className = 'cw-cell empty';
+                    }
+                    gridEl.appendChild(cellDiv);
+                }
+            }
+
+            const buildSolBoxes = (containerId, startIdx, endIdx) => {
+                const container = document.getElementById(containerId);
+                container.innerHTML = '';
+                for(let i = startIdx; i <= endIdx; i++) {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'sol-box-wrapper';
+
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.maxLength = 1;
+                    input.className = 'sol-box';
+                    input.id = 'sol-box-' + i;
+                    input.autocomplete = 'off';
+
+                    input.addEventListener('input', (e) => {
+                        let val = e.target.value.toUpperCase();
+                        e.target.value = val;
+                        const cwInput = document.querySelector(`.cw-input[data-snum="${i}"]`);
+                        if (cwInput) cwInput.value = val;
+                    });
+
+                    const numSpan = document.createElement('span');
+                    numSpan.className = 'sol-box-num';
+                    numSpan.innerText = i;
+
+                    wrapper.appendChild(input);
+                    wrapper.appendChild(numSpan);
+                    container.appendChild(wrapper);
+                }
+            };
+
+            buildSolBoxes('sol-word-1', 1, 5);
+            buildSolBoxes('sol-word-2', 6, 11);
+        }
+
+
+        /* =========================================================
+           SUDOKU LOGIK
+           ========================================================= */
+        const initialBoard = [
+            [0, 6, 0, 3, 0, 0],
+            [0, 0, 5, 0, 0, 0],
+            [0, 0, 0, 0, 0, 3],
+            [2, 0, 0, 0, 5, 0],
+            [6, 4, 3, 0, 0, 0],
+            [0, 2, 0, 6, 3, 4]
+        ];
+
+        let board = initialBoard.map(row => [...row]);
+        const gridEl = document.getElementById('grid');
+        const cells = [];
+        let selectedCell = null;
+        let gameWon = false;
+
+        function initGrid() {
+            for (let r = 0; r < 6; r++) {
+                for (let c = 0; c < 6; c++) {
+                    const cellDiv = document.createElement('div');
+                    cellDiv.className = 'cell';
+
+                    if (initialBoard[r][c] !== 0) {
+                        cellDiv.textContent = initialBoard[r][c];
+                        cellDiv.classList.add('fixed');
+                    } else {
+                        cellDiv.addEventListener('click', () => selectCell(r, c));
+                    }
+
+                    gridEl.appendChild(cellDiv);
+                    cells.push({ r, c, element: cellDiv });
+                }
+            }
+        }
+
+        function getCellElement(r, c) { return cells.find(i => i.r === r && i.c === c).element; }
+
+        function selectCell(r, c) {
+            if (gameWon) return;
+            if (selectedCell) getCellElement(selectedCell.r, selectedCell.c).classList.remove('selected');
+            if (selectedCell && selectedCell.r === r && selectedCell.c === c) {
+                selectedCell = null;
+                return;
+            }
+            selectedCell = { r, c };
+            getCellElement(r, c).classList.add('selected');
+        }
+
+        function insertNumber(num) {
+            if (!selectedCell || gameWon) return;
+            const { r, c } = selectedCell;
+            board[r][c] = num;
+            getCellElement(r, c).textContent = num;
+            validateBoard();
+        }
+
+        function clearSelectedCell() {
+            if (!selectedCell || gameWon) return;
+            const { r, c } = selectedCell;
+            board[r][c] = 0;
+            getCellElement(r, c).textContent = '';
+            validateBoard();
+        }
+
+        function validateBoard() {
+            let isFull = true;
+            let hasError = false;
+
+            for (let r = 0; r < 6; r++) {
+                for (let c = 0; c < 6; c++) {
+                    const cellEl = getCellElement(r, c);
+                    cellEl.classList.remove('error');
+                    if (board[r][c] === 0) isFull = false;
+                }
+            }
+
+            for (let r = 0; r < 6; r++) {
+                for (let c = 0; c < 6; c++) {
+                    const val = board[r][c];
+                    if (val === 0) continue;
+                    let conflict = false;
+
+                    for (let i = 0; i < 6; i++) if (i !== c && board[r][i] === val) conflict = true;
+                    for (let i = 0; i < 6; i++) if (i !== r && board[i][c] === val) conflict = true;
+
+                    const startR = Math.floor(r / 2) * 2;
+                    const startC = Math.floor(c / 3) * 3;
+                    for (let i = 0; i < 2; i++) {
+                        for (let j = 0; j < 3; j++) {
+                            const br = startR + i, bc = startC + j;
+                            if ((br !== r || bc !== c) && board[br][bc] === val) conflict = true;
+                        }
+                    }
+                    if (conflict) { getCellElement(r, c).classList.add('error'); hasError = true; }
+                }
+            }
+
+            if (isFull && !hasError) {
+                gameWon = true;
+                if (selectedCell) getCellElement(selectedCell.r, selectedCell.c).classList.remove('selected');
+                onSudokuSolved(); 
+            }
+        }
+
+        // Start
+        initGrid();
+        initCrossword();
+    </script>
+</body>
+</html>
