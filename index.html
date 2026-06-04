@@ -507,7 +507,7 @@
         const POOL_LOESUNG = "19 3 8 23 5 19 20 5 18"; 
         
         // --- Station 4 (Hügel) ---
-        const HUEGEL_ANTWORT = "März, 2015;
+        const HUEGEL_ANTWORT = "März, 2015";
 
 
         /* =========================================================
@@ -535,7 +535,7 @@
             if (hintCloseCallback) hintCloseCallback();
         }
 
-        function requireKeyword(expectedWords, title, description, onSuccess) {
+        function requireKeyword(expectedWord, title, description, onSuccess) {
             currentExpectedKeyword = expectedWord.toLowerCase().trim();
             nextCallbackAfterKeyword = onSuccess;
             
