@@ -513,7 +513,7 @@
         /* =========================================================
            STEUERUNG DER STATIONEN (Zustandsmaschine)
            ========================================================= */
-        let currentExpectedKeywords = [];
+        let currentExpectedKeywords = "";
         let nextCallbackAfterKeyword = null;
         let hintCloseCallback = null;
 
@@ -536,8 +536,7 @@
         }
 
         function requireKeyword(expectedWords, title, description, onSuccess) {
-            const words = Array.isArray(expectedWords) ? expectedWords : [expectedWords];
-            currentExpectedKeywords = words.map(word => word.toLowerCase().trim());
+            currentExpectedKeyword = expectedWord.toLowerCase().trim();
             nextCallbackAfterKeyword = onSuccess;
             
             document.getElementById('keyword-title').innerText = title;
@@ -550,7 +549,7 @@
 
         function checkKeyword() {
             const input = document.getElementById('keyword-input').value.toLowerCase().trim();
-            if (currentExpectedKeywords.includes(input)) {
+            if (input === currentExpectedKeyword) {
                 if (nextCallbackAfterKeyword) nextCallbackAfterKeyword();
             } else {
                 document.getElementById('keyword-error').classList.add('visible');
@@ -617,7 +616,7 @@
                     "Rätsel gelöst", 
                     "Lösungswörter:\n\nHÜGEL RODELN\n\nDiese Wörter führen dich zur nächsten Station.",
                     () => requireKeyword(
-                        ["Baum", "Ast"], 
+                        "Baum", 
                         "Station 4", 
                         "An diesem Schlüsselwort hängt die nächste Station.", 
                         startHuegelTask
